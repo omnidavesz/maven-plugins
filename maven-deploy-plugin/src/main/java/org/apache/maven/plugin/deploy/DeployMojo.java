@@ -33,6 +33,7 @@ import org.apache.maven.artifact.deployer.ArtifactDeploymentException;
 import org.apache.maven.artifact.metadata.ArtifactMetadata;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.artifact.repository.layout.ArtifactRepositoryLayout;
+import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -66,6 +67,9 @@ public class DeployMojo
 
     /**
      */
+    @Parameter( defaultValue = "${session}", readonly = true, required = true )
+    private MavenSession session;
+    
     @Parameter( defaultValue = "${project}", readonly = true, required = true )
     private MavenProject project;
 
@@ -128,6 +132,21 @@ public class DeployMojo
     public void execute()
         throws MojoExecutionException, MojoFailureException
     {
+        String currentGroupId = session.getCurrentProject().getGroupId();
+        String currentArtifactId = session.getCurrentProject().getArtifactId();
+        int expectedProjectSize = 0;
+        
+        for ( int i = 0; i < reactorProjects.size(); i++ ) 
+        {
+            String groupId = reactorProjects.get( i ).getGroupId();
+            String artifactId = reactorProjects.get( i ).getArtifactId();
+            if ( groupId.equals( currentGroupId ) && artifactId.equals( currentArtifactId ) ) 
+            {
+                expectedProjectSize = reactorProjects.size() - i;
+                break;
+            }
+        }
+        
         boolean addedDeployRequest = false;
         if ( skip )
         {
@@ -153,7 +172,7 @@ public class DeployMojo
             }
         }
 
-        boolean projectsReady = READYPROJECTSCOUNTER.incrementAndGet() == reactorProjects.size();
+        boolean projectsReady = READYPROJECTSCOUNTER.incrementAndGet() == expectedProjectSize;
         if ( projectsReady )
         {
             synchronized ( DEPLOYREQUESTS )
